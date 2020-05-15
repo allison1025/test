@@ -11,3 +11,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 #test
 #hi
+
+```{r}
+#check
+2*5
+```
+
+#hello!
