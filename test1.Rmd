@@ -7,29 +7,18 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+#load("/Users/allisonyih/Desktop/AdmissionsData.rdata")
+load('/Users/emi/UCSB\ Coding/pstat131/AdmissionsData.rdata') 
 ```
 
-<<<<<<< HEAD
-#testingggg :)
-=======
-#test
-#hi
-
-```{r}
-#check
-2*5
-```
-
-#hello!
 
 ```{r}
 library(dplyr)
-load("/Users/allisonyih/Desktop/AdmissionsData.rdata")
 admissions_data <- Admissions
 admissions_new_dataset <- na.omit(admissions_data) 
 admissions_new_dataset <- subset(admissions_new_dataset, select = c(admit, gpa.wtd, sati.verb, sati.math, income, sex)) 
 admissions_new_dataset <- filter(admissions_new_dataset, sati.math !=0, sati.verb != 0)
-admissions_new_dataset
+head(admissions_new_dataset)
 summary(admissions_new_dataset)
 ```
 
@@ -44,7 +33,7 @@ boxplot(gpa.wtd ~ sex, data = admissions_new_dataset, main = "weighted gpa v sex
 (insert more exploratory plots here)
 
 ```{r}
-hist(admissions_new_dataset$gpa.wtd, "main = weighted gpa dist") #histogram plotting gpa.wtd 
+hist(admissions_new_dataset$gpa.wtd, main = "weighted gpa dist") #histogram plotting gpa.wtd 
 #plot shows that gpa.wtd is left-skewed
 ```
 
