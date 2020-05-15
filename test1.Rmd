@@ -9,4 +9,56 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+<<<<<<< HEAD
 #testingggg :)
+=======
+#test
+#hi
+
+```{r}
+#check
+2*5
+```
+
+#hello!
+
+```{r}
+library(dplyr)
+load("/Users/allisonyih/Desktop/AdmissionsData.rdata")
+admissions_data <- Admissions
+admissions_new_dataset <- na.omit(admissions_data) 
+admissions_new_dataset <- subset(admissions_new_dataset, select = c(admit, gpa.wtd, sati.verb, sati.math, income, sex)) 
+admissions_new_dataset <- filter(admissions_new_dataset, sati.math !=0, sati.verb != 0)
+admissions_new_dataset
+summary(admissions_new_dataset)
+```
+
+```{r}
+str(admissions_new_dataset)
+```
+
+```{r}
+boxplot(gpa.wtd ~ sex, data = admissions_new_dataset, main = "weighted gpa v sex", ylab = "weighted gpa") #0 = male, 1 = female
+```
+
+(insert more exploratory plots here)
+
+```{r}
+hist(admissions_new_dataset$gpa.wtd, "main = weighted gpa dist") #histogram plotting gpa.wtd 
+#plot shows that gpa.wtd is left-skewed
+```
+
+```{r}
+cutoff <- sort(sample(nrow(admissions_new_dataset), nrow(admissions_new_dataset)*.75))
+train <- admissions_new_dataset[cutoff,]
+test <- admissions_new_dataset[-cutoff,]
+```
+
+knn (emi)
+
+log reg (emi)
+
+decision trees (allison)
+
+random forest (allison)
+>>>>>>> clean + split dataset, eda
