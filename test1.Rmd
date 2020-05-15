@@ -1,20 +1,11 @@
 ---
-title: "test"
-author: "Allison Yih"
-date: "5/14/2020"
-output: html_document
+title: "Machine Learning Analysis of College Admissions"
+author: "Allison Yih and Emi Kong"
+date: "`r format(Sys.Date(), '%B %d, %Y')`"
+output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-#test
-#hi
-
-```{r}
-#check
-2*5
-```
-
-#hello!
