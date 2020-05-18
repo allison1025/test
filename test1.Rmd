@@ -7,8 +7,8 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-#load("/Users/allisonyih/Desktop/AdmissionsData.rdata")
-load('/Users/emi/UCSB\ Coding/pstat131/AdmissionsData.rdata') 
+load("/Users/allisonyih/Desktop/AdmissionsData.rdata")
+#load('/Users/emi/UCSB\ Coding/pstat131/AdmissionsData.rdata') 
 ```
 
 
@@ -19,10 +19,13 @@ admissions_new_dataset <- na.omit(admissions_data)
 admissions_new_dataset <- subset(admissions_new_dataset, select = c(admit, gpa.wtd, sati.verb, sati.math, income, sex)) 
 admissions_new_dataset <- filter(admissions_new_dataset, sati.math !=0, sati.verb != 0)
 head(admissions_new_dataset)
-summary(admissions_new_dataset)
+summary(admissions_new_dataset) 
 ```
 
 ```{r}
+#convert admit + sex variables into factors
+admissions_new_dataset$admit<-as.factor(admissions_new_dataset$admit)
+admissions_new_dataset$sex<-as.factor(admissions_new_dataset$sex)
 str(admissions_new_dataset)
 ```
 
@@ -48,6 +51,33 @@ knn (emi)
 log reg (emi)
 
 decision trees (allison)
+```{r}
+library(tree)
+#fit <- tree(admit ~., data = train)
+#summary(fit)
+#plot(fit)
+#text(fit, pretty = 0, cex = .7)
+```
 
 random forest (allison)
->>>>>>> clean + split dataset, eda
+```{r}
+library(randomForest)
+library(tree)
+library(gbm)
+
+rf_admits = randomForest(admit ~ ., data=train, ntree=500, importance = TRUE)
+plot(rf_admits)
+print(rf_admits)
+```
+
+```{r}
+yhat.rf = predict(rf_admits, newdata = test)
+rf_error = table(pred = yhat.rf, truth = test$admit)
+test_rf_error = 1 - sum(diag(rf_error))/sum(rf_error)
+test_rf_error
+```
+
+```{r}
+importance(rf_admits)
+```
+the most important variable for getting admitted into the college was weighted GPA. Verbal SAT score was the 2nd-most important factor that determined the individual's admission decision.
