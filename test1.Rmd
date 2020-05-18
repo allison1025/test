@@ -7,59 +7,137 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-load("/Users/allisonyih/Desktop/AdmissionsData.rdata")
-#load('/Users/emi/UCSB\ Coding/pstat131/AdmissionsData.rdata') 
+#load("/Users/allisonyih/Desktop/AdmissionsData.rdata")
+load('/Users/emi/UCSB\ Coding/pstat131/AdmissionsData.rdata') 
 ```
 
+#Data Pre-Processing
 
 ```{r}
 library(dplyr)
+library(class)
 admissions_data <- Admissions
-admissions_new_dataset <- na.omit(admissions_data) 
-admissions_new_dataset <- subset(admissions_new_dataset, select = c(admit, gpa.wtd, sati.verb, sati.math, income, sex)) 
-admissions_new_dataset <- filter(admissions_new_dataset, sati.math !=0, sati.verb != 0)
-head(admissions_new_dataset)
-summary(admissions_new_dataset) 
+admissions_new <- na.omit(admissions_data) 
+admissions_new <- subset(admissions_new, select = c(admit, gpa.wtd, sati.verb, sati.math, income, sex)) 
+admissions_new <- filter(admissions_new, sati.math !=0, sati.verb != 0)
+head(admissions_new)
+summary(admissions_new) 
 ```
 
 ```{r}
 #convert admit + sex variables into factors
-admissions_new_dataset$admit<-as.factor(admissions_new_dataset$admit)
-admissions_new_dataset$sex<-as.factor(admissions_new_dataset$sex)
-str(admissions_new_dataset)
+admissions_new$admit<-as.factor(admissions_new$admit)
+admissions_new$sex<-as.factor(admissions_new$sex) #0 = male, 1 = female
+str(admissions_new)
 ```
+
+#Exploratory Data Analysis
+Note that, before 2005, the SAT had only two sections: Verbal and Math. Each section was scored on a scale of 200-800 with the composite SAT score ranging from 400-1600.
+```{r, out.width='50%', fig.show='hold'}
+boxplot(gpa.wtd ~ admit, data = admissions_new, main = "weighted gpa v admit", 
+        ylab = "weighted gpa")
+boxplot(sati.verb ~ admit, data = admissions_new, main = "verbal SAT scores v admit",
+        ylab = "verbal SAT scores")
+boxplot(sati.math ~ admit, data = admissions_new, main = "math SAT scores v admit", 
+        ylab = "math SAT scores")
+boxplot(income ~ admit, data = admissions_new, main = "income v admit", 
+        ylab = "income")
+```
+
+
+```{r, out.width='50%', fig.show='hold'}
+library(ggplot2)
+#admitted = admissions_new[admissions_new$admit==1,]
+ggplot(admissions_new, aes(x=gpa.wtd, fill = admit, color=admit)) + geom_histogram(bins=30)
+ggplot(admissions_new, aes(x=sati.verb, fill = admit, color=admit)) + geom_histogram(bins=30)
+ggplot(admissions_new, aes(x=sati.math, fill = admit, color=admit)) + geom_histogram(bins=30)
+ggplot(admissions_new, aes(x=income, fill = admit, color=admit)) + geom_histogram(bins=30)
+```
+
+#Splitting the data into 50% training and 50% testing
 
 ```{r}
-boxplot(gpa.wtd ~ sex, data = admissions_new_dataset, main = "weighted gpa v sex", ylab = "weighted gpa") #0 = male, 1 = female
+set.seed(50)
+cutoff <- sort(sample(nrow(admissions_new), nrow(admissions_new)*.5))
+train <- admissions_new[cutoff,]
+test <- admissions_new[-cutoff,]
 ```
 
-(insert more exploratory plots here)
-
+#knn (emi)
+CREATING RESPONSE VECTORS & DESIGN MATRICES:
 ```{r}
-hist(admissions_new_dataset$gpa.wtd, main = "weighted gpa dist") #histogram plotting gpa.wtd 
-#plot shows that gpa.wtd is left-skewed
+#YTrain is the observed results for admit (0 = not admitted, 1 = admitted)
+YTrain <- train$admit
+#XTrain is the design matrix after removing admit & sex variables and standardizing 
+XTrain <- train[ ,-which(names(train) %in% c("admit","sex"))] %>% 
+  scale(center = TRUE, scale = TRUE)
+
+#mean and standard deviation
+meanvec <- attr(XTrain,'scaled:center') 
+sdvec <- attr(XTrain,'scaled:scale')
+
+#X and Y for testing set
+YTest <- test$admit
+XTest <- test[ ,-which(names(train) %in% c("admit","sex"))] %>% 
+  scale(center = meanvec, scale = sdvec)
 ```
 
+
+USING LOOCV TO FIND THE BEST NUMBER OF NEIGHBORS (K):
 ```{r}
-cutoff <- sort(sample(nrow(admissions_new_dataset), nrow(admissions_new_dataset)*.75))
-train <- admissions_new_dataset[cutoff,]
-test <- admissions_new_dataset[-cutoff,]
+#define an empty vector to save validation errors in future
+validation.error = NULL
+#give possible number of nearest neighbours to be considered 
+allK = 1:50
+#for each number in allK, use LOOCV to find a validation error 
+for (i in allK){
+  pred.Yval <- knn.cv(train=XTrain, cl=YTrain, k=i)
+  validation.error <- c(validation.error, mean(pred.Yval!=YTrain)) 
+}
+#best number of neighbors
+bestK <- max(allK[validation.error == min(validation.error)]) 
+bestK
+
+#make predictions with bestK
+pred.YTest = knn(train=XTrain, test=XTest, cl=YTrain, k=bestK) 
+#confusion matrix
+conf.matrix.knn <- table(pred=pred.YTest, true=YTest) 
+conf.matrix.knn
+#test error rate
+1 - sum(diag(conf.matrix.knn)/sum(conf.matrix.knn))
 ```
 
-knn (emi)
+The best value of K to use is 49 because it results in the lowest test error rate.
 
-log reg (emi)
+#log reg (emi)
+```{r}
+#fit
+admit.glm <- glm(admit ~ ., data=train,family=binomial) 
+#summary(admit.glm)
+#phat (soft class)
+admit.glm.pred1 <- predict(admit.glm, data=test, type="response")
+#yhat (hard class) w/ threshold 0.5
+admit.glm.pred2 <- rep(0, length(admit.glm.pred1)) #create new vector w/ all prob 0 
+admit.glm.pred2[admit.glm.pred1 > 0.5] <- 1 #set those w/ prob > 0.5 to 1 into the new vector
+#confusion matrix
+conf.matrix.log <- table(pred=admit.glm.pred2, true=test$admit) 
+conf.matrix.log
+#test error rate
+1 - sum(diag(conf.matrix.log)/sum(conf.matrix.log))
+```
 
-decision trees (allison)
+
+#decision trees (allison)
 ```{r}
 library(tree)
 #fit <- tree(admit ~., data = train)
 #summary(fit)
 #plot(fit)
 #text(fit, pretty = 0, cex = .7)
+#title("Decision Tree Built on Training Set")
 ```
 
-random forest (allison)
+#random forest (allison)
 ```{r}
 library(randomForest)
 library(tree)
