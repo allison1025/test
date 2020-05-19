@@ -9,53 +9,58 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 #load("/Users/allisonyih/Desktop/AdmissionsData.rdata")
 load('/Users/emi/UCSB\ Coding/pstat131/AdmissionsData.rdata') 
+library(dplyr)
+library(class) #for knn classifiers
+library(MASS) #for LDA
 ```
 
 #Data Pre-Processing
 
 ```{r}
-library(dplyr)
-library(class)
 admissions_data <- Admissions
 admissions_new <- na.omit(admissions_data) 
-admissions_new <- subset(admissions_new, select = c(admit, gpa.wtd, sati.verb, sati.math, income, sex)) 
+admissions_new <- subset(admissions_new, select = c(admit, gpa.wtd, sati.verb, sati.math, income)) 
 admissions_new <- filter(admissions_new, sati.math !=0, sati.verb != 0)
 head(admissions_new)
 summary(admissions_new) 
 ```
 
 ```{r}
-#convert admit + sex variables into factors
+#convert admit variable into factors
 admissions_new$admit<-as.factor(admissions_new$admit)
-admissions_new$sex<-as.factor(admissions_new$sex) #0 = male, 1 = female
 str(admissions_new)
 ```
 
 #Exploratory Data Analysis
 Note that, before 2005, the SAT had only two sections: Verbal and Math. Each section was scored on a scale of 200-800 with the composite SAT score ranging from 400-1600.
 ```{r, out.width='50%', fig.show='hold'}
-boxplot(gpa.wtd ~ admit, data = admissions_new, main = "weighted gpa v admit", 
+boxplot(gpa.wtd ~ admit, data = admissions_new, main = "Weighted GPA", 
         ylab = "weighted gpa")
-boxplot(sati.verb ~ admit, data = admissions_new, main = "verbal SAT scores v admit",
+boxplot(sati.verb ~ admit, data = admissions_new, main = "Verbal SAT Scores",
         ylab = "verbal SAT scores")
-boxplot(sati.math ~ admit, data = admissions_new, main = "math SAT scores v admit", 
+boxplot(sati.math ~ admit, data = admissions_new, main = "Math SAT Scores", 
         ylab = "math SAT scores")
-boxplot(income ~ admit, data = admissions_new, main = "income v admit", 
+boxplot(income ~ admit, data = admissions_new, main = "Income", 
         ylab = "income")
 ```
 
+We start by investigating any significant relationships between our predictors and admittance. From these boxplots, we see that the people who are admitted have higher weighted GPAs, and higher verbal and math SAT scores. There is little difference in income amount for people who are admitted versus people who are not admitted. 
 
 ```{r, out.width='50%', fig.show='hold'}
 library(ggplot2)
-#admitted = admissions_new[admissions_new$admit==1,]
-ggplot(admissions_new, aes(x=gpa.wtd, fill = admit, color=admit)) + geom_histogram(bins=30)
-ggplot(admissions_new, aes(x=sati.verb, fill = admit, color=admit)) + geom_histogram(bins=30)
-ggplot(admissions_new, aes(x=sati.math, fill = admit, color=admit)) + geom_histogram(bins=30)
-ggplot(admissions_new, aes(x=income, fill = admit, color=admit)) + geom_histogram(bins=30)
+ggplot(admissions_new, aes(x=gpa.wtd, fill = admit, color=admit)) + geom_histogram(bins=30) +
+  ggtitle("Weighted GPA")
+ggplot(admissions_new, aes(x=sati.verb, fill = admit, color=admit)) + geom_histogram(bins=30) + 
+  ggtitle("Verbal SAT Scores")
+ggplot(admissions_new, aes(x=sati.math, fill = admit, color=admit)) + geom_histogram(bins=30) + 
+  ggtitle("Math SAT Scores")
+ggplot(admissions_new, aes(x=income, fill = admit, color=admit)) + geom_histogram(bins=30) + 
+  ggtitle("Income")
 ```
 
-#Splitting the data into 50% training and 50% testing
+Next, we plot histogram graphs to see the distibution of each predictor for all applicants separated by color (depending on if they were admitted or not). For weighted GPA, an applicants chances of getting admitted are extremeely high if their GPA is around 4.25 or higher. This is also seen when applicants have a verbal SAT score of at least 700 and/or a math SAT score around 725 or greater. Since a majority of the applicants have income around $100,000 it is expected that the majority of people admitted also have that same income amount.
 
+#Splitting the data into 50% training and 50% testing
 ```{r}
 set.seed(50)
 cutoff <- sort(sample(nrow(admissions_new), nrow(admissions_new)*.5))
@@ -68,8 +73,8 @@ CREATING RESPONSE VECTORS & DESIGN MATRICES:
 ```{r}
 #YTrain is the observed results for admit (0 = not admitted, 1 = admitted)
 YTrain <- train$admit
-#XTrain is the design matrix after removing admit & sex variables and standardizing 
-XTrain <- train[ ,-which(names(train) %in% c("admit","sex"))] %>% 
+#XTrain is the design matrix after removing admit variable and standardizing 
+XTrain <- train[ ,-which(names(train) %in% c("admit"))] %>% 
   scale(center = TRUE, scale = TRUE)
 
 #mean and standard deviation
@@ -78,7 +83,7 @@ sdvec <- attr(XTrain,'scaled:scale')
 
 #X and Y for testing set
 YTest <- test$admit
-XTest <- test[ ,-which(names(train) %in% c("admit","sex"))] %>% 
+XTest <- test[ ,-which(names(train) %in% c("admit"))] %>% 
   scale(center = meanvec, scale = sdvec)
 ```
 
@@ -97,8 +102,12 @@ for (i in allK){
 #best number of neighbors
 bestK <- max(allK[validation.error == min(validation.error)]) 
 bestK
+```
 
-#make predictions with bestK
+The best value of K to use is 35 because it results in the lowest training error rate.
+
+```{r}
+#make predictions on the test set with bestK
 pred.YTest = knn(train=XTrain, test=XTest, cl=YTrain, k=bestK) 
 #confusion matrix
 conf.matrix.knn <- table(pred=pred.YTest, true=YTest) 
@@ -107,13 +116,38 @@ conf.matrix.knn
 1 - sum(diag(conf.matrix.knn)/sum(conf.matrix.knn))
 ```
 
-The best value of K to use is 49 because it results in the lowest test error rate.
+
+#lda (emi)
+```{r}
+#fit
+admit.lda <- lda(admit ~ ., data=train)
+#yhat
+admit.lda.pred <- predict(admit.lda, data=test)$class
+#confusion matrix
+conf.matrix.lda <- table(pred=admit.lda.pred, true=test$admit) 
+conf.matrix.lda
+#test error rate
+1 - sum(diag(conf.matrix.lda)/sum(conf.matrix.lda))
+```
+
+#qda (emi)
+```{r}
+#fit
+admit.qda <- qda(admit ~ ., data=train)
+#yhat
+admit.qda.pred <- predict(admit.qda, data=test)$class
+#confusion matrix
+conf.matrix.qda <- table(pred=admit.qda.pred, true=test$admit) 
+conf.matrix.qda
+#test error rate
+1 - sum(diag(conf.matrix.qda)/sum(conf.matrix.qda))
+```
 
 #log reg (emi)
 ```{r}
 #fit
-admit.glm <- glm(admit ~ ., data=train,family=binomial) 
-#summary(admit.glm)
+admit.glm <- glm(admit ~ ., data=train, family=binomial) 
+summary(admit.glm)
 #phat (soft class)
 admit.glm.pred1 <- predict(admit.glm, data=test, type="response")
 #yhat (hard class) w/ threshold 0.5
@@ -125,7 +159,6 @@ conf.matrix.log
 #test error rate
 1 - sum(diag(conf.matrix.log)/sum(conf.matrix.log))
 ```
-
 
 #decision trees (allison)
 ```{r}
