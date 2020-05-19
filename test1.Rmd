@@ -7,8 +7,8 @@ output: pdf_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-#load("/Users/allisonyih/Desktop/AdmissionsData.rdata")
-load('/Users/emi/UCSB\ Coding/pstat131/AdmissionsData.rdata') 
+load("/Users/allisonyih/Desktop/AdmissionsData.rdata")
+#load('/Users/emi/UCSB\ Coding/pstat131/AdmissionsData.rdata') 
 library(dplyr)
 library(class) #for knn classifiers
 library(MASS) #for LDA
@@ -163,12 +163,28 @@ conf.matrix.log
 #decision trees (allison)
 ```{r}
 library(tree)
-#fit <- tree(admit ~., data = train)
-#summary(fit)
-#plot(fit)
-#text(fit, pretty = 0, cex = .7)
-#title("Decision Tree Built on Training Set")
+tree_fit <- tree(admit ~ ., data = train) #fitting classification tree
+plot(tree_fit) #plotting tree
+text(tree_fit, pretty = 0)
+title("Classification Tree Built on Training Set") 
 ```
+
+```{r}
+admit.testset <- test$admit
+#predict each observation's class using the test set
+yhat.testset <- predict(tree_fit, test, type="class") 
+yhat.testset
+```
+```{r}
+#confusion matrix
+test_tree_matrix <- table(yhat.testset, admit.testset)
+test_tree_matrix
+
+#finding test error rate for this tree
+tree_error_rate <- 1-sum(diag(test_tree_matrix))/sum(test_tree_matrix)
+tree_error_rate
+```
+The test error rate is 19.34%, which means that our classification tree was able to correctly predict the admissions decision for 80.66% of the observations in the test set.
 
 #random forest (allison)
 ```{r}
@@ -191,4 +207,4 @@ test_rf_error
 ```{r}
 importance(rf_admits)
 ```
-the most important variable for getting admitted into the college was weighted GPA. Verbal SAT score was the 2nd-most important factor that determined the individual's admission decision.
+The most important variable for getting admitted into the college was weighted GPA. Verbal SAT score was the 2nd-most important factor that determined the individual's admission decision.
