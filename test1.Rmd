@@ -5,6 +5,25 @@ date: "`r format(Sys.Date(), '%B %d, %Y')`"
 output: pdf_document
 ---
 
+**Data:**
+The dataset that will be used for analyzing this college's admissions is AdmissionsData.rdata, which is from a data scientist, Ernest Tavares's, blog. In this dataset, there are 8700 observations, 1 response variable, and 8 predictor variables, with the variables "admit" and "sex" being coded as binary categorical variables. The dataset contains information about each applicant's academic scores, personal background, and the type of admissions decision that they receive.
+
+The variable "admit" is a factor and the response variable for our model, and it takes on the value 0 and 1 to represent getting a rejection and acceptance, respectively. 
+
+The variable "gpa.wtd" is a numeric predictor that describes what the individual's weighted grade point average is.
+
+The variable "sati.verb" is a integer predictor that describes what the individual's SAT verbal test score is. Like "sati.verb", "sati.math" is a integer type and describes what the individual's SAT math test score is. The variable "income" is also an integer variable, and it describes how much money that the individual's family makes per year.  
+
+The variables "anglo", "asian", "black", and "sex" were ommited in our anaylsis since we felt that a person's race would not significantly affect how well they were performing academically and whether they get admitted into the college. 
+
+Additionally, there were several rows under "sati.verb" and "sati.math" that had values of 0. This could be because those individuals took the ACT, which is the alternative exam for the SAT and those scores were not reported. Because of the 0s in the SAT variable sections, we omitted all rows under "sati.verb" and "sati.math" having a value of 0. 
+
+By removing those 2196 rows with missing or 0 values, this ensured that we were only looking at the data for applicants who took the SAT exam. Cleaning this dataset resulted in 6182 observations, 0 missing values, and 4 predictor variables.
+
+**Methods:**
+(to-do)
+
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 load("/Users/allisonyih/Desktop/AdmissionsData.rdata")
