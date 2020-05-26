@@ -6,15 +6,16 @@ output: pdf_document
 ---
 
 #Data Overview
+For our project, we hope to develop a binary classification model that classifies whether someone gets admitted into an elite university, given that individual’s weighted high school GPA, standardized testing scores, and their family income
 
 The dataset that will be used for analyzing this college's admissions is AdmissionsData.rdata, which is from a data scientist, Ernest Tavares's, blog. In this dataset, there are 8700 observations, 1 response variable, and 8 predictor variables, with the variables "admit" and "sex" being coded as binary categorical variables. The dataset contains information about each applicant's academic scores, personal background, and the type of admissions decision that they receive.
 
-The variable "admit" is a factor and the response variable for our model. It takes on the value 0 and 1 to represent getting a rejection and acceptance, respectively. The variable "gpa.wtd" is a numeric predictor that describes what the individual's weighted grade point average is. Before 2005, the SAT had only two sections: Verbal and Math. Each section was scored on a scale of 200-800 with the composite SAT score ranging from 400-1600. The variable "sati.verb" is a integer predictor that describes what the individual's SAT verbal test score is. Like "sati.verb", "sati.math" is a integer type and describes what the individual's SAT math test score is. The variable "income" is also an integer variable, and it describes how much money that the individual's family makes per year. The variables "anglo", "asian", and "black" were omitted in our analysis since there was an initial uneven racial distribution of all applicants with 33% anglo, 45% asian, 4% black, and the remaining 18% unspecified. The “sex” categorical variable was omitted from the dataset because the amount of gender bias in college admissions differs between college types, according to an article by the Washington Post. For instance, small liberal arts schools admit 3% more males, while engineering-focused schools tend to admit women by 10-25% more. Because we don’t know the kind of college that these students applied to, removing “sex” from our analysis allowed for more consistency when comparing classification methods and test error rates since some of the methods we used couldn’t handle categorical predictors.
+The variable "admit" is a factor and the response variable for our model. It takes on the value 0 and 1 to represent getting a rejection and acceptance, respectively. The variable "gpa.wtd" is a numeric predictor that describes what the individual's weighted high school grade point average is. Before 2005, the SAT had only two sections: Verbal and Math. Each section was scored on a scale of 200-800 with the composite SAT score ranging from 400-1600. The variable "sati.verb" is a integer predictor that describes what the individual's SAT verbal test score is. Like "sati.verb", "sati.math" is a integer type and describes what the individual's SAT math test score is. The variable "income" is also an integer variable, and it describes how much money that the individual's family makes per year. The variables "anglo", "asian", and "black" were omitted in our analysis since there was an initial uneven racial distribution of all applicants with 33% anglo, 45% asian, 4% black, and the remaining 18% unspecified. The “sex” categorical variable was omitted from the dataset because the amount of gender bias in college admissions differs between college types, according to an article by the Washington Post. For instance, small liberal arts schools admit 3% more males, while engineering-focused schools tend to admit women by 10-25% more. Because we don’t know the kind of college that these students applied to, removing “sex” from our analysis allowed for more consistency when comparing classification methods and test error rates since some of the methods we used couldn’t handle categorical predictors.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-#load("/Users/allisonyih/Desktop/AdmissionsData.rdata")
-load('/Users/emi/UCSB\ Coding/pstat131/AdmissionsData.rdata') 
+load("/Users/allisonyih/Desktop/AdmissionsData.rdata")
+#load('/Users/emi/UCSB\ Coding/pstat131/AdmissionsData.rdata') 
 library(dplyr)
 library(class) #for knn classifiers
 library(ROCR) #for log regression (ROC)
@@ -22,7 +23,7 @@ library(ROCR) #for log regression (ROC)
 
 #Data Preprocessing
 
-After omitting the applicants with missing data, we noticed there were several rows under "sati.verb" and "sati.math" that had values of 0. This could be because those individuals took the ACT, which is the alternative exam for the SAT and those scores were not reported. Because of the 0s in the SAT variable sections, we omitted all rows under "sati.verb" and "sati.math" having a value of 0. By removing those 2196 rows with missing or 0 values, this ensured that we were only looking at the data for applicants who took the SAT exam. Cleaning this dataset resulted in 6182 observations, 0 missing values, and 4 predictor variables.
+After omitting the applicants with missing data, we noticed there were several rows under "sati.verb" and "sati.math" that had values of 0. This could be because those individuals took the ACT, which is the alternative exam for the SAT, and those scores were not reported. Because of the 0s in the SAT variable sections, we omitted all rows under "sati.verb" and "sati.math" having a value of 0. By removing those 2196 rows with missing or 0 values, this ensured that we were only looking at the data for applicants who took the SAT exam. Cleaning this dataset resulted in 6182 observations, 0 missing values, and 4 predictor variables.
 
 
 ```{r}
@@ -232,7 +233,10 @@ log_error
 With our optimal threshold value, we fit our testing set logistic regression model, constructed a confusion matrix, and found our test misclassification error rate to be 0.1844063. This is slightly greater than our test error rate for K-nearest neighbors.
 
 
-#decision trees (allison)
+#Decision Trees
+The decision tree algorithm was used because its output is simple to interpret. Each split represents the order in which the tree decides how to further split a set of features to eventually classify a qualitative response. 
+
+To implement the decision tree, we first fit our model with all 4 predictors on the training set. 
 ```{r}
 library(tree)
 tree_fit <- tree(admit ~ ., data = train) #fitting classification tree
@@ -240,25 +244,32 @@ plot(tree_fit) #plotting tree
 text(tree_fit, pretty = 0)
 title("Classification Tree Built on Training Set") 
 ```
+However, based on the decision tree’s plot, the data was split using only the gpa.wtd and sati.verb variables. Since decision trees involve looking at each variable’s importance, this indicates that gpa.wtd, followed by sati.verb, were the most significant variables that would help our model gain the most information regarding how to make the best split at each node. 
 
+To calculate the test error rate for our classification tree, we predicted the response values for the test set and then constructed a confusion matrix. 
 ```{r}
 admit.testset <- test$admit
 #predict each observation's class using the test set
 yhat.testset <- predict(tree_fit, test, type="class") 
-yhat.testset
-```
-```{r}
+
 #confusion matrix
 test_tree_matrix <- table(yhat.testset, admit.testset)
 test_tree_matrix
+```
 
+Finally, we subtracted the test accuracy rate, which is found through dividing the counter diagonal sum by the total sum, from 1 to get the test error rate.
+```{r}
 #finding test error rate for this tree
 tree_error_rate <- 1-sum(diag(test_tree_matrix))/sum(test_tree_matrix)
 tree_error_rate
 ```
-The test error rate is 19.34%, which means that our classification tree was able to correctly predict the admissions decision for 80.66% of the observations in the test set.
+Our decision tree's misclassification error rate is 0.1779. This means that our classification tree was able to correctly predict the admissions decision for 82.21% of the observations in the test set. When compared to KNN, our classification tree algorithm had a slightly higher test error rate, but had a smaller test error rate than logistic regression.
 
-#random forest (allison)
+#Random Forest
+
+Another method that was used for our classification was random forest. While containing multiple decision trees makes them harder to interpret, random forests prevent data overfitting and give highly accurate predictions, due to their robustness as an ensemble learning method. 
+
+To implement the classification tree version of a random forest, we fit the model and set the number of parameters as the square root of the total number of predictors. 
 ```{r}
 library(randomForest)
 library(tree)
@@ -269,6 +280,7 @@ plot(rf_admits)
 print(rf_admits)
 ```
 
+Then, we constructed a confusion matrix and calculated the misclassification rate to be 0.1715.
 ```{r}
 yhat.rf = predict(rf_admits, newdata = test)
 rf_error = table(pred = yhat.rf, truth = test$admit)
@@ -276,7 +288,18 @@ test_rf_error = 1 - sum(diag(rf_error))/sum(rf_error)
 test_rf_error
 ```
 
+Another advantage of using random forests is that they provide information about not only the strength of the relationship between each predictor and response, but also how influential each predictor is on the classifications. 
+
+Each feature's importance is based off of their mean decrease in accuracy and Gini index. To view the degree of influence that each predictor has on the result, we use the importance() function, which displays these 2 factors in decreasing order. 
 ```{r}
 importance(rf_admits)
 ```
-The most important variable for getting admitted into the college was weighted GPA. Verbal SAT score was the 2nd-most important factor that determined the individual's admission decision.
+From this output, it tells us that most important variable for getting admitted into the college was weighted GPA, as it had the highest decrease in mean accuracy and Gini index. Verbal SAT score was the 2nd-most important factor that determined the individual's admission decision.
+
+Additionally, we plotted each variable's mean decreases in accuracy and Gini index. 
+```{r}
+varImpPlot(rf_admits, sort = T, main = "Variable Importance Plot of College Admission Factors")
+```
+From those graphs, it reemphasizes that the "gpa.wtd" variable had the most influence over the final admissions decision across all trees in the random forest the most, in terms of model accuracy and Gini index.
+
+Overall, random forest had the 2nd-lowest misclassification rate, but did not perform as well as the KNN LOOCV method. 
