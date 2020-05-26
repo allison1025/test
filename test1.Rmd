@@ -6,15 +6,10 @@ output: pdf_document
 ---
 
 **Data:**
+
 The dataset that will be used for analyzing this college's admissions is AdmissionsData.rdata, which is from a data scientist, Ernest Tavares's, blog. In this dataset, there are 8700 observations, 1 response variable, and 8 predictor variables, with the variables "admit" and "sex" being coded as binary categorical variables. The dataset contains information about each applicant's academic scores, personal background, and the type of admissions decision that they receive.
 
-The variable "admit" is a factor and the response variable for our model, and it takes on the value 0 and 1 to represent getting a rejection and acceptance, respectively. 
-
-The variable "gpa.wtd" is a numeric predictor that describes what the individual's weighted grade point average is.
-
-The variable "sati.verb" is a integer predictor that describes what the individual's SAT verbal test score is. Like "sati.verb", "sati.math" is a integer type and describes what the individual's SAT math test score is. The variable "income" is also an integer variable, and it describes how much money that the individual's family makes per year.  
-
-The variables "anglo", "asian", "black", and "sex" were ommited in our anaylsis since we felt that a person's race would not significantly affect how well they were performing academically and whether they get admitted into the college. 
+The variable "admit" is a factor and the response variable for our model, and it takes on the value 0 and 1 to represent getting a rejection and acceptance, respectively. The variable "gpa.wtd" is a numeric predictor that describes what the individual's weighted grade point average is. The variable "sati.verb" is a integer predictor that describes what the individual's SAT verbal test score is. Like "sati.verb", "sati.math" is a integer type and describes what the individual's SAT math test score is. The variable "income" is also an integer variable, and it describes how much money that the individual's family makes per year. The variables "anglo", "asian", and "black" were omitted in our analysis since there was an initial uneven racial distribution of all applicants with 33% anglo, 45% asian, 4% black, and the remaining 18% unspecified. With the "sex" variable being the only (binary) categorical variable, we chose to also ommit it from the dataset. This allowed for more consistency when comparing classification methods and test error rates since some methods we used don't handle categorical predictors.
 
 Additionally, there were several rows under "sati.verb" and "sati.math" that had values of 0. This could be because those individuals took the ACT, which is the alternative exam for the SAT and those scores were not reported. Because of the 0s in the SAT variable sections, we omitted all rows under "sati.verb" and "sati.math" having a value of 0. 
 
@@ -26,11 +21,11 @@ By removing those 2196 rows with missing or 0 values, this ensured that we were 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-load("/Users/allisonyih/Desktop/AdmissionsData.rdata")
-#load('/Users/emi/UCSB\ Coding/pstat131/AdmissionsData.rdata') 
+#load("/Users/allisonyih/Desktop/AdmissionsData.rdata")
+load('/Users/emi/UCSB\ Coding/pstat131/AdmissionsData.rdata') 
 library(dplyr)
 library(class) #for knn classifiers
-library(MASS) #for LDA
+library(ROCR) #for log regression (ROC)
 ```
 
 #Data Pre-Processing
@@ -38,8 +33,9 @@ library(MASS) #for LDA
 ```{r}
 admissions_data <- Admissions
 admissions_new <- na.omit(admissions_data) 
-admissions_new <- subset(admissions_new, select = c(admit, gpa.wtd, sati.verb, sati.math, income)) 
 admissions_new <- filter(admissions_new, sati.math !=0, sati.verb != 0)
+colSums(admissions_new)
+admissions_new <- subset(admissions_new, select = c(admit, gpa.wtd, sati.verb, sati.math, income)) 
 head(admissions_new)
 summary(admissions_new) 
 ```
@@ -96,7 +92,7 @@ YTrain <- train$admit
 XTrain <- train[ ,-which(names(train) %in% c("admit"))] %>% 
   scale(center = TRUE, scale = TRUE)
 
-#mean and standard deviation
+#mean and standard deviation of training set
 meanvec <- attr(XTrain,'scaled:center') 
 sdvec <- attr(XTrain,'scaled:scale')
 
@@ -106,6 +102,22 @@ XTest <- test[ ,-which(names(train) %in% c("admit"))] %>%
   scale(center = meanvec, scale = sdvec)
 ```
 
+
+MAKING PREDICTIONS ON THE TEST SET WITH K = 5, 10, 20
+```{r}
+#k=5
+pred5 = knn(train=XTrain, test=XTest, cl=YTrain, k=5) 
+conf.matrix5 <- table(pred=pred5, true=YTest) 
+err5 = 1 - sum(diag(conf.matrix5)/sum(conf.matrix5))
+#k=10
+pred10 = knn(train=XTrain, test=XTest, cl=YTrain, k=10) 
+conf.matrix10 <- table(pred=pred10, true=YTest) 
+err10 = 1 - sum(diag(conf.matrix10)/sum(conf.matrix10))
+#k=20
+pred20 = knn(train=XTrain, test=XTest, cl=YTrain, k=20) 
+conf.matrix20 <- table(pred=pred20, true=YTest) 
+err20 = 1 - sum(diag(conf.matrix20)/sum(conf.matrix20))
+```
 
 USING LOOCV TO FIND THE BEST NUMBER OF NEIGHBORS (K):
 ```{r}
@@ -132,52 +144,70 @@ pred.YTest = knn(train=XTrain, test=XTest, cl=YTrain, k=bestK)
 conf.matrix.knn <- table(pred=pred.YTest, true=YTest) 
 conf.matrix.knn
 #test error rate
-1 - sum(diag(conf.matrix.knn)/sum(conf.matrix.knn))
+err_bestk = 1 - sum(diag(conf.matrix.knn)/sum(conf.matrix.knn))
+err_bestk
 ```
 
-
-#lda (emi)
 ```{r}
-#fit
-admit.lda <- lda(admit ~ ., data=train)
-#yhat
-admit.lda.pred <- predict(admit.lda, data=test)$class
-#confusion matrix
-conf.matrix.lda <- table(pred=admit.lda.pred, true=test$admit) 
-conf.matrix.lda
-#test error rate
-1 - sum(diag(conf.matrix.lda)/sum(conf.matrix.lda))
+knn_results <- matrix(c(err5, err10, err20, err_bestk), ncol=1, byrow=TRUE)
+colnames(knn_results) <- c("Test Error Rate")
+rownames(knn_results) <- c("K = 5","K = 10","K = 20", "K = 35")
+knn_results.table <- as.table(knn_results)
+knn_results.table
 ```
 
-#qda (emi)
-```{r}
-#fit
-admit.qda <- qda(admit ~ ., data=train)
-#yhat
-admit.qda.pred <- predict(admit.qda, data=test)$class
-#confusion matrix
-conf.matrix.qda <- table(pred=admit.qda.pred, true=test$admit) 
-conf.matrix.qda
-#test error rate
-1 - sum(diag(conf.matrix.qda)/sum(conf.matrix.qda))
-```
 
 #log reg (emi)
 ```{r}
 #fit
-admit.glm <- glm(admit ~ ., data=train, family=binomial) 
-summary(admit.glm)
-#phat (soft class)
-admit.glm.pred1 <- predict(admit.glm, data=test, type="response")
-#yhat (hard class) w/ threshold 0.5
-admit.glm.pred2 <- rep(0, length(admit.glm.pred1)) #create new vector w/ all prob 0 
-admit.glm.pred2[admit.glm.pred1 > 0.5] <- 1 #set those w/ prob > 0.5 to 1 into the new vector
-#confusion matrix
-conf.matrix.log <- table(pred=admit.glm.pred2, true=test$admit) 
-conf.matrix.log
-#test error rate
-1 - sum(diag(conf.matrix.log)/sum(conf.matrix.log))
+train.glm <- glm(admit ~ ., data=train, family=binomial) 
+summary(train.glm)
 ```
+
+CHECKING HOW ACCURATE OUR MODEL IS WITH ROC & AUC:
+```{r}
+train.glm.pred <- predict(train.glm, type="response")
+pred = prediction(train.glm.pred, train$admit)
+perf = performance(pred, measure="tpr", x.measure="fpr")
+#ROC
+plot(perf, col=2, lwd=3, main="ROC curve") 
+abline(0,1)
+#AUC
+performance(pred, "auc")@y.values 
+```
+
+USING FPR & FNR TO FIND THE BEST THRESHOLD VALUE:
+```{r}
+fpr = performance(pred, "fpr")@y.values[[1]] 
+threshold = performance(pred, "fpr")@x.values[[1]] 
+fnr = performance(pred,"fnr")@y.values[[1]]
+#calculating euclidean distance
+rate = as.data.frame(cbind(Cutoff=threshold, FPR=fpr, FNR=fnr)) 
+rate$distance = sqrt((rate[,2])^2+(rate[,3])^2)
+#select threshold with the smallest euclidean distance
+index = which.min(rate$distance) 
+best = rate$Cutoff[index]
+best
+#plot
+matplot(threshold, cbind(fpr,fnr), type="l",lwd=2, xlab="Threshold",ylab="Error Rate") 
+legend(0.38, 1, legend=c("False Positive Rate","False Negative Rate"),col=c(1,2), lty=c(1,2))
+abline(v=best, col=3, lty=3, lwd=3)
+```
+
+
+```{r}
+test.glm <- glm(admit ~ ., data=test, family=binomial)
+#soft classifier
+test.glm.pred <- predict(test.glm, type="response")
+#hard classifier w/ "best" threshold 
+test_new = test %>% mutate(admit_pred=as.factor(ifelse(test.glm.pred<=best, 0, 1)))
+#confusion matrix
+conf.matrix.log <- table(pred=test_new$admit_pred, true=test$admit)
+#test error rate
+log_error <- 1 - sum(diag(conf.matrix.log)/sum(conf.matrix.log))
+log_error
+```
+
 
 #decision trees (allison)
 ```{r}
