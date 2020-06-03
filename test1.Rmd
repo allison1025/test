@@ -31,8 +31,6 @@ library(class) #for knn classifiers
 library(ROCR) #for log regression (ROC)
 ```
 
-
-
 ```{r}
 admissions_data <- Admissions
 admissions_new <- na.omit(admissions_data) 
@@ -317,3 +315,205 @@ varImpPlot(rf_admits, sort = T, main = "Variable Importance Plot of College Admi
 From those graphs, it reemphasizes that the "gpa.wtd" variable had the most influence over the final admissions decision across all trees in the random forest the most, in terms of model accuracy and Gini index.
 
 Overall, random forest had the 2nd-lowest misclassification rate, but did not perform as well as the KNN LOOCV method. 
+
+
+**Conclusion**
+```{r}
+error_results <- matrix(c(err_bestk, log_error, tree_error_rate, test_rf_error), ncol=1, byrow=TRUE)
+colnames(error_results) <- c("Test Error Rate")
+rownames(error_results) <- c("KNN (K = 35)","Logistic Regression","Decision Tree", "Random Forest")
+error_results.table <- as.table(error_results)
+error_results.table
+```
+Study Limitations:
+In addition to test scores and GPA, an applicant's accomplishments in extracurriculars, strength of statement of purpose response and reccommendation letters are also important criteria in deciding one's admission decision. However, these are factors that a machine learning model cannot consider. For instance, it would be difficult to develop a model that could read in an applicant's essay and decide whether it is well-written, since that is a subjective opinion.
+
+Additionally, we do not know the details about this type of school and population that our dataset describes. Different kinds of schools have varying acceptance rates. For example, liberal arts schools tend to accept the same amount of genders, while at engineering schools, women have a 10-15% greater chance of getting admitted, according to a Washington Post article. Since our data is based off of one college, the context about the admissions data is limited to that school's applicants, so we would not be able to generalize how much our model's predictors influence college admittance at all colleges.
+
+Potential Research:
+In the future, we hope to consider how college admissions factors and acceptance affect the yield rate at a school. Many people apply to "safety" schools, where previously admitted students have lower academic scores than that applicant However, they usually do not accept attending those schools because they believe that their academic accomplishments make them overqualified. We would also be interested in utilizing unsupervised learning methods on datasets without a response variable to classify admission decisions. 
+
+**References**
+* Anderson, Nick. “The Gender Factor in College Admissions: Do Men or Women Have an Edge?” The Washington Post, WP Company, 26 Mar. 2014, www.washingtonpost.com/local/education/the-gender-factor-in-college-admissions/2014/03/26/4996e988-b4e6-11e3-8020-b2d790b3c9e1_story.html.
+
+* Tavares, Ernest. “College Admissions Exploratory Analysis in R.” Ernest Tavares III Full RSS, etav.github.io/projects/random_forest_college_admissions.html.
+
+**Appendix**
+```{r, eval = FALSE}
+library(dplyr)
+library(class) #for knn classifiers
+library(ROCR) #for log regression (ROC)
+library(ggplot2)
+library(tree)
+library(randomForest)
+library(gbm)
+
+admissions_data <- Admissions
+admissions_new <- na.omit(admissions_data) 
+admissions_new <- filter(admissions_new, sati.math !=0, sati.verb != 0)
+#colSums(admissions_new)
+admissions_new <- subset(admissions_new, select = c(admit, gpa.wtd, sati.verb, sati.math, income)) 
+head(admissions_new)
+summary(admissions_new)
+dim(admissions_new)
+
+#convert admit variable into factors
+admissions_new$admit<-as.factor(admissions_new$admit)
+str(admissions_new)
+
+boxplot(gpa.wtd ~ admit, data = admissions_new, main = "Weighted GPA", 
+        ylab = "weighted gpa")
+boxplot(sati.verb ~ admit, data = admissions_new, main = "Verbal SAT Scores",
+        ylab = "verbal SAT scores")
+boxplot(sati.math ~ admit, data = admissions_new, main = "Math SAT Scores", 
+        ylab = "math SAT scores")
+boxplot(income ~ admit, data = admissions_new, main = "Income", 
+        ylab = "income")
+
+ggplot(admissions_new, aes(x=gpa.wtd, fill = admit, color=admit)) + geom_histogram(bins=30) +
+  ggtitle("Weighted GPA")
+ggplot(admissions_new, aes(x=sati.verb, fill = admit, color=admit)) + geom_histogram(bins=30) + 
+  ggtitle("Verbal SAT Scores")
+ggplot(admissions_new, aes(x=sati.math, fill = admit, color=admit)) + geom_histogram(bins=30) + 
+  ggtitle("Math SAT Scores")
+ggplot(admissions_new, aes(x=income, fill = admit, color=admit)) + geom_histogram(bins=30) + 
+  ggtitle("Income")
+
+set.seed(50)
+#50% train, 50% test
+cutoff <- sort(sample(nrow(admissions_new), nrow(admissions_new)*.5))
+train <- admissions_new[cutoff,]
+test <- admissions_new[-cutoff,]
+
+#YTrain is the observed results for admit (0 = not admitted, 1 = admitted)
+YTrain <- train$admit
+#XTrain is the design matrix after removing admit variable and standardizing 
+XTrain <- train[ ,-which(names(train) %in% c("admit"))] %>% 
+  scale(center = TRUE, scale = TRUE)
+
+#mean and standard deviation of training set
+meanvec <- attr(XTrain,'scaled:center') 
+sdvec <- attr(XTrain,'scaled:scale')
+
+#X and Y for testing set
+YTest <- test$admit
+XTest <- test[ ,-which(names(train) %in% c("admit"))] %>% 
+  scale(center = meanvec, scale = sdvec)
+
+#k=5
+pred5 = knn(train=XTrain, test=XTest, cl=YTrain, k=5) 
+conf.matrix5 <- table(pred=pred5, true=YTest) 
+err5 = 1 - sum(diag(conf.matrix5)/sum(conf.matrix5))
+#k=10
+pred10 = knn(train=XTrain, test=XTest, cl=YTrain, k=10) 
+conf.matrix10 <- table(pred=pred10, true=YTest) 
+err10 = 1 - sum(diag(conf.matrix10)/sum(conf.matrix10))
+#k=20
+pred15 = knn(train=XTrain, test=XTest, cl=YTrain, k=15) 
+conf.matrix15 <- table(pred=pred15, true=YTest) 
+err15 = 1 - sum(diag(conf.matrix15)/sum(conf.matrix15))
+
+#Using LOOCV to Find the Best Value of K:
+set.seed(150)
+#define an empty vector to save validation errors in future
+validation.error = NULL
+#give possible number of nearest neighbours to be considered 
+allK = 1:50
+#for each number in allK, use LOOCV to find a validation error 
+for (i in allK){
+  pred.Yval <- knn.cv(train=XTrain, cl=YTrain, k=i)
+  validation.error <- c(validation.error, mean(pred.Yval!=YTrain)) 
+}
+#best number of neighbors
+bestK <- max(allK[validation.error == min(validation.error)]) 
+bestK
+
+#make predictions on the test set with bestK
+pred.YTest = knn(train=XTrain, test=XTest, cl=YTrain, k=bestK) 
+#confusion matrix
+conf.matrix.knn <- table(pred=pred.YTest, true=YTest) 
+conf.matrix.knn
+#test error rate
+err_bestk = 1 - sum(diag(conf.matrix.knn)/sum(conf.matrix.knn))
+err_bestk
+
+knn_results <- matrix(c(err5, err10, err15, err_bestk), ncol=1, byrow=TRUE)
+colnames(knn_results) <- c("Test Error Rate")
+rownames(knn_results) <- c("K = 5","K = 10","K = 15", "K = 35")
+knn_results.table <- as.table(knn_results)
+knn_results.table
+
+#log reg fit
+train.glm <- glm(admit ~ ., data=train, family=binomial) 
+summary(train.glm)
+
+#Checking How Accurate our Model is with ROC & AUC
+train.glm.pred <- predict(train.glm, type="response")
+pred = prediction(train.glm.pred, train$admit)
+perf = performance(pred, measure="tpr", x.measure="fpr")
+#ROC
+plot(perf, col=2, lwd=3, main="ROC curve") 
+abline(0,1)
+#AUC
+performance(pred, "auc")@y.values
+
+#Using FPR & FNR to Find the Best Threshold Value
+fpr = performance(pred, "fpr")@y.values[[1]] 
+threshold = performance(pred, "fpr")@x.values[[1]] 
+fnr = performance(pred,"fnr")@y.values[[1]]
+#calculating euclidean distance
+rate = as.data.frame(cbind(Cutoff=threshold, FPR=fpr, FNR=fnr)) 
+rate$distance = sqrt((rate[,2])^2+(rate[,3])^2)
+#select threshold with the smallest euclidean distance
+index = which.min(rate$distance) 
+best = rate$Cutoff[index]
+best
+
+#plot
+matplot(threshold, cbind(fpr,fnr), type="l",lwd=2, xlab="Threshold",ylab="Error Rate") 
+legend(0.38, 1, legend=c("False Positive Rate","False Negative Rate"),col=c(1,2), lty=c(1,2))
+abline(v=best, col=3, lty=3, lwd=3)
+
+test.glm <- glm(admit ~ ., data=test, family=binomial)
+#soft classifier
+test.glm.pred <- predict(test.glm, type="response")
+#hard classifier w/ "best" threshold 
+test_new = test %>% mutate(admit_pred=as.factor(ifelse(test.glm.pred<=best, 0, 1)))
+#confusion matrix
+conf.matrix.log <- table(pred=test_new$admit_pred, true=test$admit)
+#test error rate
+log_error <- 1 - sum(diag(conf.matrix.log)/sum(conf.matrix.log))
+log_error
+
+tree_fit <- tree(admit ~ ., data = train) #fitting classification tree
+plot(tree_fit) #plotting tree
+text(tree_fit, pretty = 0)
+title("Classification Tree Built on Training Set") 
+
+admit.testset <- test$admit
+#predict each observation's class using the test set
+yhat.testset <- predict(tree_fit, test, type="class") 
+#confusion matrix
+test_tree_matrix <- table(yhat.testset, admit.testset)
+test_tree_matrix
+tree_error_rate <- 1-sum(diag(test_tree_matrix))/sum(test_tree_matrix)
+tree_error_rate
+
+rf_admits = randomForest(admit ~ ., data=train, ntree=500, importance = TRUE)
+plot(rf_admits)
+print(rf_admits)
+
+yhat.rf = predict(rf_admits, newdata = test)
+rf_error = table(pred = yhat.rf, truth = test$admit) #confusion matrix
+test_rf_error = 1 - sum(diag(rf_error))/sum(rf_error) #test error rate
+test_rf_error
+
+importance(rf_admits)
+varImpPlot(rf_admits, sort = T, main = "Variable Importance Plot of College Admission Factors")
+
+error_results <- matrix(c(err_bestk, log_error, tree_error_rate, test_rf_error), ncol=1, byrow=TRUE)
+colnames(error_results) <- c("Test Error Rate")
+rownames(error_results) <- c("KNN (K = 35)","Logistic Regression","Decision Tree", "Random Forest")
+error_results.table <- as.table(error_results)
+error_results.table
+```
