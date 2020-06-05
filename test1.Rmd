@@ -7,9 +7,7 @@ output:
   word_document: default
 ---
 #Introduction
-Many high school students stress out about college admissions, often wondering what their chances are for getting into a certain university. It is common for someone's peers, who have lower testing scores, to get into a college that that individual is rejected from. 
-
-To get a better idea of what college admissions officers view as the most important factors of a successful applicant, we developed a supervised, binary classifier that predicts an individual's admission outcome for our project. 
+Many high school students stress out about college admissions, often wondering what their chances are for getting into a certain university. To get a better idea of what college admissions officers view as the most important factors of a successful applicant, we developed a supervised, binary classifier that predicts an individual's admission outcome for our project. 
 
 The applicant's weighted high school GPA, standardized testing scores, and family income are the factors taken into consideration. Through building this model, we hope to help college applicants figure out which aspects of their application should be focused on in order to maximize their likelihood of acceptance.
 
@@ -78,7 +76,7 @@ ggplot(admissions_new, aes(x=income, fill = admit, color=admit)) + geom_histogra
   ggtitle("Income")
 ```
 
-For weighted GPA, an applicants chances of getting admitted are extremeely high if their GPA is around 4.00 or higher. This is also seen when applicants have a verbal SAT score of at least 600 and/or a math SAT score around 625 or greater. Since a majority of the applicants have income around $100,000 it is expected that the majority of people admitted also have that same income amount.
+For weighted GPA, an applicants chances of getting admitted are extremely high if their GPA is around 4.00 or higher. This is also seen when applicants have a verbal SAT score of at least 600 and/or a math SAT score around 625 or greater. Since a majority of the applicants have income around $100,000 it is expected that the majority of people admitted also have that same income amount.
 
 #Methods
 To find the model that would accurately classify whether an applicant gets admitted to this college, we will apply supervised machine learning methods on a training dataset.
@@ -96,7 +94,7 @@ test <- admissions_new[-cutoff,]
 The algorithms that we will use to classify our data observations are K-nearest neighbors (KNN), logistic regression, decision trees, and random forest. Leave-one-out cross validation (LOOCV) will also be used to tune parameters for KNN in order to reduce bias and test error rate. For each algorithm, we will calculate a confusion matrix for predicted vs actual admission results, and compare their test error rates. By having our model learn and identify college acceptance patterns from previous data, we hope that it will help our model more accurately predict an outcome on new, similar data.
 
 #K-Nearest Neighbors
-We first use the K-nearest neighbors method to analyze the relationship between admissions and all numerical predictors. We created response vectors & design matrices to train the KNN classifier with 5, 10, and 20 neighbors initially. We chose these values because they are common K’s that tend to optimize the bias-variance tradeoff. Using leave one out cross validation, we also found the best value of K was 35 neighbors and chose to train the KNN classifier with this value as well. 
+We first use the K-nearest neighbors method to analyze the relationship between admissions and all numerical predictors. We created response vectors & design matrices to train the KNN classifier with 5, 10, and 15 neighbors initially. We chose these values because they are common K’s that tend to optimize the bias-variance tradeoff. Using leave one out cross validation, we also found the best value of K was 35 neighbors and chose to train the KNN classifier with this value as well. 
 
 ```{r, include=FALSE}
 #Creating Response Vectors & Design Matrices:
@@ -128,7 +126,7 @@ err5 = 1 - sum(diag(conf.matrix5)/sum(conf.matrix5))
 pred10 = knn(train=XTrain, test=XTest, cl=YTrain, k=10) 
 conf.matrix10 <- table(pred=pred10, true=YTest) 
 err10 = 1 - sum(diag(conf.matrix10)/sum(conf.matrix10))
-#k=20
+#k=15
 pred15 = knn(train=XTrain, test=XTest, cl=YTrain, k=15) 
 conf.matrix15 <- table(pred=pred15, true=YTest) 
 err15 = 1 - sum(diag(conf.matrix15)/sum(conf.matrix15))
@@ -172,7 +170,12 @@ knn_results.table <- as.table(knn_results)
 knn_results.table
 ```
 
-After training all KNN classifiers, we fit the test sets to each model and calculated the test error rates. The model based on 35 nearest neighbors resulted in the lowest misclassification error rate on the test set at 0.1633775. This makes sense since the purpose of LOOCV is to help us find the optimal number of neighbors, and since larger values of K produce smoother decision boundaries with lower variance.
+After training all KNN classifiers, we fit the test sets to each model and calculated the test error rates. The model based on 35 nearest neighbors resulted in the lowest misclassification error rate on the test set at 0.1633775. This makes sense since the purpose of LOOCV is to help us find the optimal number of neighbors, and since larger values of K produce smoother decision boundaries with lower variance. The visual representation below shows the error rates versus K values and our conclusion is further confirmed since K=35 is the lowest point on the graph. 
+
+```{r, echo=FALSE, out.width='75%', fig.show='hold', fig.align = 'center'}
+plot(validation.error, type = "b", col = "dodgerblue", cex = 1, pch = 20, xlab = "K, number of neighbors", ylab = "Classification Error Rate", main = "Error Rate vs K values")
+```
+
 
 #Logistic Regression
 
@@ -254,7 +257,7 @@ To implement the decision tree, we first fit our model with all 4 predictors on 
 
 \ 
 
-```{r, echo=FALSE, out.width='70%', fig.show='hold', fig.align = 'center'}
+```{r, echo=FALSE, out.width='65%', fig.show='hold', fig.align = 'center'}
 library(tree)
 tree_fit <- tree(admit ~ ., data = train) #fitting classification tree
 plot(tree_fit) #plotting tree
@@ -330,6 +333,8 @@ Overall, random forest had the 2nd-lowest misclassification rate, but did not pe
 
 
 #Conclusion
+When deciding our final model for this project, we chose to compare all the error rates (for our testing set) that each model produced. A model with a low test error rate signifies that the model classified very accurately and fit well to new data.
+
 __Test Error Rates for All Models__
 ```{r, echo=FALSE}
 error_results <- matrix(c(err_bestk, log_error, tree_error_rate, test_rf_error), ncol=1, byrow=TRUE)
@@ -339,7 +344,7 @@ error_results.table <- as.table(error_results)
 error_results.table
 ```
 
-When deciding our final model for this project, we chose to compare all the error rates (for our testing set) that each model produced. A model with a low test error rate signifies that the model classified very accurately and fit well to new data. For our project, we conclude that K-nearest neighbors, with 35 neighbors, is our final model for predicting college admission results because it had the smallest test error rate.
+For our project, we conclude that K-nearest neighbors, with 35 neighbors, is our final model for predicting college admission results because it had the smallest test error rate.
 
 ##Study Limitations:
 In addition to test scores and GPA, an applicant's accomplishments in extracurriculars, strength of essay responses and reccommendation letters are also important criteria in deciding one's admission decision. However, these are factors that a machine learning model cannot fully consider. For instance, it would be difficult to develop a model that could read in an applicant's essay and decide whether it is well-written, since that is a subjective opinion.
@@ -427,7 +432,7 @@ err5 = 1 - sum(diag(conf.matrix5)/sum(conf.matrix5))
 pred10 = knn(train=XTrain, test=XTest, cl=YTrain, k=10) 
 conf.matrix10 <- table(pred=pred10, true=YTest) 
 err10 = 1 - sum(diag(conf.matrix10)/sum(conf.matrix10))
-#k=20
+#k=15
 pred15 = knn(train=XTrain, test=XTest, cl=YTrain, k=15) 
 conf.matrix15 <- table(pred=pred15, true=YTest) 
 err15 = 1 - sum(diag(conf.matrix15)/sum(conf.matrix15))
@@ -461,6 +466,8 @@ colnames(knn_results) <- c("Test Error Rate")
 rownames(knn_results) <- c("K = 5","K = 10","K = 15", "K = 35")
 knn_results.table <- as.table(knn_results)
 knn_results.table
+
+plot(validation.error, type = "b", col = "dodgerblue", cex = 1, pch = 20, xlab = "K, number of neighbors", ylab = "Classification Error Rate", main = "Error Rate vs K values")
 
 #log reg fit
 train.glm <- glm(admit ~ ., data=train, family=binomial) 
